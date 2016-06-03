@@ -218,15 +218,15 @@ filter_forms(Msgs, Enums, [{attribute,L,module,pokemon_pb}|Tail], Basename, Acc)
 filter_forms(Msgs, Enums, [{attribute,L,export,[{encode_pikachu,1},{decode_pikachu,1},{delimited_decode_pikachu,1}]}|Tail], Basename, Acc) ->
     Exports = lists:foldl(
         fun({Name,_,_}, Acc1) ->
-            [{list_to_atom("encode_" ++ string:to_lower(Name)),1},
-             {list_to_atom("decode_" ++ string:to_lower(Name)),1},
-             {list_to_atom("delimited_decode_" ++ string:to_lower(Name)),1} | Acc1]
+            [{list_to_atom("encode_" ++ Name),1},
+             {list_to_atom("decode_" ++ Name),1},
+             {list_to_atom("delimited_decode_" ++ Name),1} | Acc1]
         end, [], Msgs),
     filter_forms(Msgs, Enums, Tail, Basename, [{attribute,L,export,Exports}|Acc]);
 
 filter_forms(Msgs, Enums, [{attribute,L,record,{pikachu,_}}|Tail], Basename, Acc) ->
     Records = [begin
-           OutFields = [string:to_lower(A) || {_, _, _, A, _} <- lists:keysort(1, Fields)],
+           OutFields = [A || {_, _, _, A, _} <- lists:keysort(1, Fields)],
        ExtendField = case Extends of
            disallowed -> [];
            _ -> [{record_field,L,{atom,L,'$extensions'}}]
@@ -238,7 +238,7 @@ filter_forms(Msgs, Enums, [{attribute,L,record,{pikachu,_}}|Tail], Basename, Acc
 
 filter_forms(Msgs, Enums, [{function,L,encode_pikachu,1,[ListClause, RecordClause]}|Tail], Basename, Acc) ->
     Functions = [begin
-             {function,L,list_to_atom("encode_" ++ string:to_lower(Name)),1,[replace_atom(ListClause, pikachu, atomize(Name)), replace_atom(RecordClause, pikachu, atomize(Name))]}
+             {function,L,list_to_atom("encode_" ++ Name),1,[replace_atom(ListClause, pikachu, atomize(Name)), replace_atom(RecordClause, pikachu, atomize(Name))]}
          end || {Name, _, _} <- Msgs],
     filter_forms(Msgs, Enums, Tail, Basename, Functions ++ Acc);
 
@@ -259,7 +259,7 @@ filter_forms(Msgs, Enums, [{function,L,decode_pikachu,1,[Clause]}|Tail], Basenam
     Functions = [begin
              {function,
               L,
-              list_to_atom("decode_" ++ string:to_lower(Name)),
+              list_to_atom("decode_" ++ Name),
               1,
               [replace_atom(Clause, pikachu, atomize(Name))]}
          end || {Name, _, _} <- Msgs],
@@ -268,7 +268,7 @@ filter_forms(Msgs, Enums, [{function,L,decode_pikachu,1,[Clause]}|Tail], Basenam
 filter_forms(Msgs, Enums, [{function,L,delimited_decode_pikachu,1,[Clause]} | Tail], Basename, Acc) ->
     Acc2 = lists:foldl(fun({Name, _, _}, Acc1) ->
         Clause2 = replace_atom(Clause, pikachu, atomize(Name)),
-        Function = {function,L,list_to_atom("delimited_decode_" ++ string:to_lower(Name)),1,[Clause2]},
+        Function = {function,L,list_to_atom("delimited_decode_" ++ Name),1,[Clause2]},
         [Function | Acc1]
     end, Acc, Msgs),
     filter_forms(Msgs, Enums, Tail, Basename, Acc2);
@@ -492,7 +492,7 @@ filter_decode_clause(Msgs, {MsgName, Fields, Extends}, {clause,L,_Args,Guards,[_
                  {FNum,Tag,SType,SName,Def} <- Fields]),
     Cons = lists:foldl(
          fun({FNum, FName, Type, Opts, _Def}, Acc) ->
-             {cons,L,{tuple,L,[{integer,L,FNum},{atom,L,list_to_atom(string:to_lower(atom_to_list(FName)))},{atom,L,Type},erl_parse:abstract(Opts)]},Acc}
+             {cons,L,{tuple,L,[{integer,L,FNum},{atom,L,list_to_atom(atom_to_list(FName))},{atom,L,Type},erl_parse:abstract(Opts)]},Acc}
          end, {nil,L}, Types),
     ExtendDefault = case Extends of
         disallowed -> {nil,L};
@@ -503,7 +503,7 @@ filter_decode_clause(Msgs, {MsgName, Fields, Extends}, {clause,L,_Args,Guards,[_
             ({_FNum, _FName, _Type, _Opts, none}, Acc) ->
                 Acc;
             ({FNum, FName, _Type, _Opts, Def}, Acc) ->
-                {cons,L,{tuple,L,[{integer,L,FNum},{atom,L,list_to_atom(string:to_lower(atom_to_list(FName)))},erl_parse:abstract(Def)]},Acc}
+                {cons,L,{tuple,L,[{integer,L,FNum},{atom,L,list_to_atom(atom_to_list(FName))},erl_parse:abstract(Def)]},Acc}
         end,
         ExtendDefault,
         Types),
@@ -789,10 +789,10 @@ write_header_include_file(Basename, Messages) when is_list(Basename) ->
 write_header_include_file(_FileRef, []) ->
     ok;
     write_header_include_file(FileRef, [{Name, Fields, Extends} | Tail]) ->
-    OutFields = [{string:to_lower(A), Optional, Default} || {_, Optional, _, A, Default} <- lists:keysort(1, Fields)],
+    OutFields = [{A, Optional, Default} || {_, Optional, _, A, Default} <- lists:keysort(1, Fields)],
     DefName = string:to_upper(Name) ++ "_PB_H",
     protobuffs_file:format(FileRef, "-ifndef(~s).~n-define(~s, true).~n", [DefName, DefName]),
-    protobuffs_file:format(FileRef, "-record(~s, {~n    ", [string:to_lower(Name)]),
+    protobuffs_file:format(FileRef, "-record(~p, {~n    ", [atomize(Name)]),
     WriteFields0 = generate_field_definitions(OutFields),
     WriteFields = case Extends of
                       disallowed -> WriteFields0;
@@ -831,7 +831,7 @@ atomize([String]) when is_list(String) ->
 atomize([String|[_Rest]]) when is_list(String) ->
     atomize(String);
 atomize(String) ->
-    list_to_atom(string:to_lower(String)).
+    list_to_atom(String).
 
 %% @hidden
 replace_atom(Find, Find, Replace) -> Replace;
