@@ -792,7 +792,7 @@ write_header_include_file(_FileRef, []) ->
     OutFields = [{A, Optional, Default} || {_, Optional, _, A, Default} <- lists:keysort(1, Fields)],
     DefName = string:to_upper(Name) ++ "_PB_H",
     protobuffs_file:format(FileRef, "-ifndef(~s).~n-define(~s, true).~n", [DefName, DefName]),
-    protobuffs_file:format(FileRef, "-record(~s, {~n    ", [Name]),
+    protobuffs_file:format(FileRef, "-record(~p, {~n    ", [atomize(Name)]),
     WriteFields0 = generate_field_definitions(OutFields),
     WriteFields = case Extends of
                       disallowed -> WriteFields0;
